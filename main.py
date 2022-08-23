@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from tabnanny import check
 from typing import Union
 
-from fastapi import Depends, FastAPI, HTTPException, status,Form
+from fastapi import Depends, FastAPI, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -10,6 +10,7 @@ from pydantic import BaseModel
 import json
 
 from deta import Deta  # Import Deta
+
 deta = Deta("c0p1a406_AXVnCDjdozsWrTF8Pw8xdstHgUTm2AV5")
 # to get a string like this run:
 # openssl rand -hex 32
@@ -57,21 +58,22 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def get_user_db(username:str):
-    catch = db.fetch(query=[{"id":username}])
+def get_user_db(username: str):
+    catch = db.fetch(query=[{"id": username}])
     jsonData = json.dumps(catch.__dict__)
     jsonDataLoad = json.loads(jsonData)
-    checker = bool(jsonDataLoad['_items'])
+    checker = bool(jsonDataLoad["_items"])
     if checker:
-        jsonDataLoadContent = jsonDataLoad['_items'][0]['detail']
+        jsonDataLoadContent = jsonDataLoad["_items"][0]["detail"]
         UserInDB(**jsonDataLoadContent)
         return UserInDB(**jsonDataLoadContent)
     else:
         return False
 
+
 def authenticate_user_db(username: str, password: str):
     user = get_user_db(username)
-    if(user == False):
+    if user == False:
         return False
     if not verify_password(password, user.hashed_password):
         return False
@@ -140,54 +142,80 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
 async def root():
     return {"Test": "OK"}
 
+
 @app.post("/register")
-async def register_user(username: str = Form(),password:str = Form(), email:str = Form(),fullname:str= Form()):
+async def register_user(
+    username: str = Form(),
+    password: str = Form(),
+    email: str = Form(),
+    fullname: str = Form(),
+):
     check_user = get_user_db(username)
-    if(check_user == False):
+    if check_user == False:
         hashed_password = get_password_hash(password)
-        db.insert({
-        "id" : username,
-        "detail": {
-            "username": username,
-            "full_name": fullname,
-            "email": email,
-            "hashed_password": hashed_password,
-            "disabled": False,
-        }
-        })
-        return {"username": username,
-                "email" : email,
-                "fullname" : fullname,
-                "status" : "created"
-                }
-    else:
+        db.insert(
+            {
+                "id": username,
+                "detail": {
+                    "username": username,
+                    "full_name": fullname,
+                    "email": email,
+                    "hashed_password": hashed_password,
+                    "disabled": False,
+                },
+            }
+        )
         return {
-            "status" : "account has been already"
+            "username": username,
+            "email": email,
+            "fullname": fullname,
+            "status": "created",
         }
-    
+    else:
+        return {"status": "account has been already"}
+
+
 @app.get("/users/me/items")
 async def read_own_items(current_user: User = Depends(get_current_active_user)):
-    catch = db_todo.fetch(query=[{"owner":current_user.username}])
+    catch = db_todo.fetch(query=[{"owner": current_user.username}])
     jsonData = json.dumps(catch.__dict__)
     jsonDataLoad = json.loads(jsonData)
-    checker = bool(jsonDataLoad['_items'])
+    checker = bool(jsonDataLoad["_items"])
     if checker:
-        jsonDataLoadContent = jsonDataLoad['_items']
+        jsonDataLoadContent = jsonDataLoad["_items"]
         return {"data": jsonDataLoadContent}
     else:
         return False
-    
+
+
 @app.post("/users/me/items")
-async def write_own_items(current_user: User = Depends(get_current_active_user), todo:str = Form()):
+async def write_own_items(
+    current_user: User = Depends(get_current_active_user), todo: str = Form()
+):
     dt_now = datetime.now()
     dt_string = dt_now.strftime("%d/%m/%Y %H:%M:%S")
-    db_todo.insert({
-        "owner" : current_user.username,
-        "todo" : todo,
-        "timestamp" : dt_string
-    })
-    
-    return {"owner" : current_user.username,
-            "todo" : todo,
-            "timestamp" : dt_string
-            }
+    db_todo.insert(
+        {"owner": current_user.username, "todo": todo, "timestamp": dt_string}
+    )
+
+    return {"owner": current_user.username, "todo": todo, "timestamp": dt_string}
+
+
+@app.delete("/users/me/items")
+async def delete(
+    current_user: User = Depends(get_current_active_user), key: str = Form()
+):
+    db_todo.delete(key)
+    return {"status": "data has been deleted"}
+
+
+@app.put("/users/me/items")
+async def update(
+    current_user: User = Depends(get_current_active_user),
+    key: str = Form(),
+    todo: str = Form(),
+):
+    dt_now = datetime.now()
+    dt_string = dt_now.strftime("%d/%m/%Y %H:%M:%S")
+    db_todo.update({"todo": todo, "timestamp": dt_string}, key)
+    return {"status": "data has been updated"}

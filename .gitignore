@@ -2,4 +2,6 @@ db.py
 percobaan.ipynb
 verify_todo.py
 verify_user.py
+verify_edit.py
+verify_delete.py
 env/
