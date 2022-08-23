@@ -142,21 +142,28 @@ async def root():
 
 @app.post("/register")
 async def register_user(username: str = Form(),password:str = Form(), email:str = Form(),fullname:str= Form()):
-    hashed_password = get_password_hash(password)
-    db.insert({
-    "id" : username,
-    "detail": {
-        "username": username,
-        "full_name": fullname,
-        "email": email,
-        "hashed_password": hashed_password,
-        "disabled": False,
-    }
-    })
-    return {"username": username,
-            "email" : email,
-            "fullname" : fullname,
-            }
+    check_user = get_user_db(username)
+    if(check_user == False):
+        hashed_password = get_password_hash(password)
+        db.insert({
+        "id" : username,
+        "detail": {
+            "username": username,
+            "full_name": fullname,
+            "email": email,
+            "hashed_password": hashed_password,
+            "disabled": False,
+        }
+        })
+        return {"username": username,
+                "email" : email,
+                "fullname" : fullname,
+                "status" : "created"
+                }
+    else:
+        return {
+            "status" : "account has been already"
+        }
     
 @app.get("/users/me/items")
 async def read_own_items(current_user: User = Depends(get_current_active_user)):
